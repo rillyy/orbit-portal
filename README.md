@@ -1,455 +1,640 @@
 # ORBIT — Portal Pegawai Teladan BPS Provinsi Sulawesi Utara
 
-**Outstanding Recognition & Benchmarking Tool (ORBIT)**  
-**Judul Kegiatan Magang:** Rancang Bangun Website Pemilihan Pegawai Teladan Badan Pusat Statistik Provinsi Sulawesi Utara  
-**Lokasi:** Badan Pusat Statistik (BPS) Provinsi Sulawesi Utara, Jl. 17 Agustus, Kel. Teling Atas, Kec. Wanea, Kota Manado  
-**Pengembang:** Brilliani Jeshia Potalangi — 230211060022; Claisty Marsha Umboh — 230211060023  
-**Periode Magang:** 19 Januari–19 Maret 2026  
-**Versi Sistem:** ORBIT Final 3.0  
-**Konfigurasi Implementasi:** Menggunakan project Supabase operasional yang sama/existing
+**ORBIT** (*Outstanding Recognition & Benchmarking Tool*) adalah aplikasi web berbasis **Supabase** yang dirancang untuk mendukung proses penilaian, nominasi, verifikasi, dan pengarsipan Pegawai Teladan di lingkungan BPS Provinsi Sulawesi Utara.
+
+Project ini dibuat sebagai sistem terintegrasi dengan beberapa role pengguna, yaitu **Admin**, **Juri**, **Verifikator**, dan **Pegawai**. Seluruh proses utama, mulai dari input nilai bulanan, penentuan nominasi, penilaian juri, verifikasi pemenang, hingga arsip penghargaan, dikelola dalam satu portal.
 
 ---
 
-## 1. Tentang ORBIT
+## Daftar Isi
 
-ORBIT adalah aplikasi web untuk membantu BPS Provinsi Sulawesi Utara mengelola proses pemilihan Pegawai Teladan secara lebih terstruktur, terdokumentasi, dan mudah dipantau. Sistem mendukung proses mulai dari input nilai bulanan, penyaringan nominasi per tim, penilaian oleh Juri, verifikasi hasil, hingga penyimpanan arsip pemenang serta sertifikat.
-
-Aplikasi ini dirancang dengan antarmuka bertema profesional-galaxy, dapat digunakan melalui browser, dan terhubung dengan Supabase sebagai layanan autentikasi, database, serta penyimpanan dokumen.
-
-### Tujuan utama
-
-- Menyediakan proses pemilihan pegawai teladan yang lebih tertib dan transparan.
-- Menyimpan data pegawai, pengguna, nilai, nominasi, penilaian Juri, hasil akhir, dan dokumen dalam satu sistem.
-- Memisahkan kewenangan Admin, Juri, dan Verifikator agar alur persetujuan jelas.
-- Mempermudah pembuatan laporan, arsip hasil, dan pengelolaan sertifikat.
+- [Ringkasan Project](#ringkasan-project)
+- [Fitur Utama](#fitur-utama)
+- [Role Pengguna](#role-pengguna)
+- [Teknologi yang Digunakan](#teknologi-yang-digunakan)
+- [Struktur Paket Project](#struktur-paket-project)
+- [Struktur Repository yang Disarankan](#struktur-repository-yang-disarankan)
+- [Komponen Utama](#komponen-utama)
+- [Alur Sistem](#alur-sistem)
+- [Instalasi dan Setup](#instalasi-dan-setup)
+- [Konfigurasi Supabase](#konfigurasi-supabase)
+- [Database dan Supabase Schema](#database-dan-supabase-schema)
+- [Pengujian Sistem](#pengujian-sistem)
+- [Deployment](#deployment)
+- [Catatan Keamanan](#catatan-keamanan)
+- [Troubleshooting Singkat](#troubleshooting-singkat)
+- [Dokumentasi Tambahan](#dokumentasi-tambahan)
+- [Status Project](#status-project)
 
 ---
 
-## 2. Alur Final Sistem yang Digunakan
+## Ringkasan Project
 
-Alur di bawah adalah alur final yang menjadi acuan penggunaan ORBIT:
+ORBIT dikembangkan untuk membantu digitalisasi proses pemilihan Pegawai Teladan agar lebih:
+
+- **terstruktur**, karena setiap tahap memiliki alur kerja yang jelas;
+- **terukur**, karena penilaian berbasis data nilai bulanan dan penilaian juri;
+- **transparan**, karena progres nominasi dan penilaian dapat dipantau sesuai role;
+- **terintegrasi**, karena frontend, database, authentication, storage, dan logic sistem terhubung melalui Supabase.
+
+Aplikasi ini menggunakan pendekatan **single-page application** dalam satu file `index.html`, dengan backend menggunakan **Supabase PostgreSQL**, **Supabase Auth**, **RPC/Function**, **Row Level Security**, dan **Storage Bucket**.
+
+---
+
+## Fitur Utama
+
+### 1. Authentication dan Manajemen Akun
+
+- Sign In menggunakan Supabase Authentication.
+- Sign Up akun baru melalui aplikasi.
+- Akun baru otomatis masuk ke status `pending`.
+- Admin dapat mengaktifkan akun dan menentukan role.
+- Sistem mendukung status akun `pending`, `aktif`, dan `nonaktif`.
+- Profil aplikasi tersimpan di tabel `public.users`.
+
+### 2. Manajemen Role
+
+Role yang tersedia:
+
+- `admin`
+- `juri`
+- `verifikator`
+- `pegawai`
+
+Setiap role memiliki akses dan menu yang berbeda sesuai fungsi masing-masing.
+
+### 3. Input Nilai Bulanan
+
+- Admin dapat menginput nilai pegawai berdasarkan tahun, triwulan, dan bulan.
+- Nilai disimpan dalam tabel `nilai_final`.
+- Sistem mendukung penyimpanan nilai secara real-time melalui RPC.
+- Nilai bulanan menjadi dasar dalam proses penentuan kandidat nominasi.
+
+### 4. Nominasi Pegawai Teladan
+
+- Sistem menampilkan kandidat nominasi berdasarkan nilai tertinggi.
+- Nominasi dikelompokkan berdasarkan tim/divisi.
+- Admin dapat memilih nominasi final.
+- Setelah dikirim ke juri, proses nominasi terkunci agar alur tetap konsisten.
+
+### 5. Penilaian Juri
+
+- Juri aktif dapat melihat daftar nominasi.
+- Juri dapat memberikan nilai untuk kandidat.
+- Juri hanya dapat mengubah atau menghapus nilai miliknya sendiri.
+- Sistem menampilkan status/progres penilaian setiap juri.
+
+### 6. Ranking dan Verifikasi
+
+- Ranking live dihitung berdasarkan nilai juri.
+- Admin dapat mengirim ranking ke verifikator setelah seluruh juri menyelesaikan penilaian.
+- Verifikator dapat menetapkan pemenang.
+- Verifikator dapat mengembalikan proses ke admin apabila diperlukan koreksi.
+
+### 7. Arsip Penghargaan
+
+- Pemenang yang telah ditetapkan masuk ke tabel `history_penghargaan`.
+- Arsip penghargaan tidak ikut terhapus saat siklus penilaian baru dimulai.
+- Sistem mendukung pengelolaan sertifikat penghargaan.
+
+### 8. Upload dan Storage
+
+- Project menggunakan bucket Supabase Storage bernama `doc-pegawai`.
+- File pendukung, dokumen, dan sertifikat dapat dikelola melalui storage.
+- Akses file dibatasi melalui policy Supabase.
+
+---
+
+## Role Pengguna
+
+| Role | Fungsi Utama |
+|---|---|
+| **Admin** | Mengelola akun, pegawai, juri, nilai bulanan, nominasi, pengiriman ke juri, pengiriman ke verifikator, file, dan siklus penilaian. |
+| **Juri** | Memberikan penilaian terhadap nominasi yang telah dikirim oleh admin. |
+| **Verifikator** | Memeriksa ranking akhir, menetapkan pemenang, atau mengembalikan proses apabila perlu koreksi. |
+| **Pegawai** | Role dasar untuk akun pegawai. Akun baru dari Sign Up masuk sebagai pegawai dengan status awal `pending`. |
+
+---
+
+## Teknologi yang Digunakan
+
+| Komponen | Teknologi |
+|---|---|
+| Frontend | HTML, CSS, JavaScript |
+| Backend | Supabase |
+| Database | PostgreSQL |
+| Authentication | Supabase Auth |
+| Authorization | Supabase Row Level Security |
+| Business Logic | PostgreSQL Function / RPC |
+| Storage | Supabase Storage |
+| UI Assets | Google Fonts, Supabase JS CDN |
+| Deployment | Static hosting, misalnya GitHub Pages, Netlify, Vercel, atau hosting internal |
+
+---
+
+## Struktur Paket Project
+
+Berdasarkan paket `ORBIT_BPS_GUIDEBOOK_FINAL_PACKAGE.zip`, struktur file yang dianalisis adalah sebagai berikut:
 
 ```text
-Admin menginput nilai pegawai setiap bulan
-        ↓
-Sistem menampilkan pemenang bulanan pada setiap tim
-        ↓
-Dalam satu triwulan, Admin melihat maksimal 3 pemenang bulanan per tim
-        ↓
-Admin memilih 1 kandidat dengan nilai tertinggi pada masing-masing tim
-        ↓
-Nominasi Final berisi tepat 6 kandidat, satu kandidat dari setiap tim
-        ↓
-Admin mengirim 6 kandidat kepada Juri
-        ↓
-Juri memberikan nilai kepada seluruh kandidat
-        ↓
-Admin mengirim ranking hasil penilaian kepada Verifikator
-        ↓
-Verifikator menetapkan 1 pemenang akhir per triwulan
-atau mengembalikan proses kepada Admin dengan alasan
-        ↓
-Hasil disimpan dalam arsip dan sertifikat dapat dikelola
+ORBIT_BPS_GUIDEBOOK_FINAL_PACKAGE/
+├── GUIDE_BOOK/
+│   ├── GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.docx
+│   └── GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.pdf
+├── README_SERAH_TERIMA.txt
+├── SHA256SUMS.txt
+└── ORBIT_BPS_HANDOVER_LENGKAP.zip
 ```
 
-### Enam tim/divisi dalam sistem
-
-1. Umum
-2. Sosial
-3. Produksi
-4. Nerwilis
-5. IPDS
-6. Distribusi
-
-### Aturan penting
-
-- Nominasi **tidak dihitung menggunakan rata-rata nilai bulanan**.
-- Setiap bulan, pegawai dengan nilai tertinggi pada masing-masing tim masuk ke daftar **Nominasi Per Tim**.
-- Dari maksimal tiga pemenang bulanan dalam satu triwulan, dipilih nilai tertinggi pada tim yang sama.
-- Nominasi Final harus berisi **6 kandidat**, yaitu satu kandidat dari setiap tim.
-- Nilai dari beberapa Juri dapat diolah menjadi ranking hasil Juri.
-- Verifikator hanya dapat menetapkan **1 pemenang resmi dalam setiap triwulan**.
-- Sistem final tidak menggunakan tahapan **Tutup Penilaian Bulan**, indikator progres `1/16` atau `1/24`, maupun fitur override nilai Admin.
-
-### Contoh pemilihan kandidat per tim
-
-| Tim Umum — Triwulan II | Pemenang Bulanan | Nilai | Hasil Seleksi |
-|---|---|---:|---|
-| April | Agus | 94 | Tidak dipilih |
-| Mei | Nurul | 98 | Dipilih untuk Nominasi Final |
-| Juni | Fitri | 96 | Tidak dipilih |
-
-Pada contoh tersebut, **Nurul** dipilih sebagai kandidat final Tim Umum karena memiliki nilai tertinggi di antara pemenang bulanan dalam Triwulan II.
-
----
-
-## 3. Pengguna dan Hak Akses
-
-| Role | Fungsi Utama | Akses Utama |
-|---|---|---|
-| **Admin** | Mengelola keseluruhan proses operasional | Kelola pengguna, kelola pegawai, input nilai bulanan, memilih nominasi final, mengirim ke Juri, memantau proses, mengirim ranking ke Verifikator, dokumen, sertifikat, notifikasi, laporan, dan arsip |
-| **Juri** | Memberikan penilaian kepada kandidat final | Melihat kandidat yang telah dikirim dan mengisi/memperbarui nilai miliknya sendiri selama tahap penilaian terbuka |
-| **Verifikator** | Mengambil keputusan akhir | Melihat ranking hasil Juri, menetapkan satu pemenang, atau mengembalikan proses kepada Admin dengan alasan |
-| **Pegawai** | Pengguna biasa/penerima informasi sesuai kebijakan | Akses informasi atau riwayat yang diizinkan oleh sistem/instansi |
-
-### Pengelolaan user dan pegawai
-
-- **Kelola Pengguna** dipakai untuk akun login, role, tim/divisi, dan status akses.
-- **Kelola Pegawai** dipakai untuk data master pegawai yang akan dinilai.
-- Pegawai yang dinilai tidak harus memiliki akun login.
-- Apabila seseorang berubah tugas dari Pegawai menjadi Juri atau sebaliknya, Admin mengubah role pada menu Kelola Pengguna; riwayat penilaian tidak dihapus.
-
-### Status kesiapan Juri
-
-| Status | Arti | Tindakan |
-|---|---|---|
-| Siap Menilai | Akun aktif, sudah terhubung login, dan role Juri tersinkron | Juri dapat mengisi penilaian |
-| Menunggu Aktivasi | Akun belum diaktifkan Admin | Admin mengaktifkan setelah identitas diverifikasi |
-| Belum Terhubung Login | Data user Juri tersedia, tetapi pengguna belum sign up/login dengan email yang sesuai | Juri melakukan sign up/login |
-| Perlu Sinkronisasi | Data lama membutuhkan penyelarasan | Admin/PIC melakukan pemeriksaan role dan sinkronisasi |
-
----
-
-## 4. Fitur Aplikasi
-
-### Fitur Admin
-
-- Dashboard pemantauan proses penilaian.
-- Input nilai bulanan pegawai.
-- Upload dokumen pendukung.
-- Kelola Pengguna: akun, role, tim, dan status.
-- Kelola Pegawai: master pegawai yang dinilai.
-- Nominasi Per Tim dan Nominasi Final.
-- Pengiriman enam kandidat kepada Juri.
-- Monitoring status penilaian Juri.
-- Pengiriman ranking kepada Verifikator.
-- Generate laporan.
-- Upload dan lihat sertifikat.
-- Notifikasi.
-- Approval Monitor.
-- Arsip/History pemenang.
-
-### Fitur Juri
-
-- Dashboard Juri.
-- Daftar kandidat final yang perlu dinilai.
-- Input dan pembaruan nilai milik Juri sendiri.
-- Riwayat dan notifikasi yang sesuai hak akses.
-
-### Fitur Verifikator
-
-- Dashboard Verifikator.
-- Approval/Verifikasi hasil ranking.
-- Penetapan satu pemenang per triwulan.
-- Pengembalian proses kepada Admin beserta alasan.
-- Riwayat dan notifikasi.
-
-### Dokumen dan arsip
-
-- Dokumen pendukung dan sertifikat disimpan pada storage private `doc-pegawai`.
-- Sistem menggunakan tautan akses sementara ketika file dibuka oleh pengguna yang berwenang.
-- Aksi penting dicatat melalui audit log.
-
----
-
-## 5. Teknologi yang Digunakan
-
-| Komponen | Teknologi | Fungsi |
-|---|---|---|
-| Frontend | HTML5, CSS, JavaScript dalam satu file `index.html` | Menampilkan halaman dan menjalankan logika aplikasi di browser |
-| Library frontend | Supabase JavaScript Client v2 melalui CDN | Menghubungkan aplikasi dengan Supabase |
-| Tampilan | Google Fonts: Orbitron, Rajdhani, dan Inter | Identitas visual antarmuka ORBIT |
-| Backend-as-a-Service | Supabase | Menyediakan autentikasi, database PostgreSQL, storage, dan keamanan akses |
-| Database | PostgreSQL pada Supabase | Menyimpan data pengguna, pegawai, nilai, nominasi, penilaian, arsip, sertifikat, dan audit |
-| Authentication | Supabase Auth | Sign Up dan Sign In pengguna |
-| Storage | Supabase Storage bucket private `doc-pegawai` | Menyimpan dokumen pendukung dan sertifikat |
-| Keamanan akses | Row Level Security (RLS), policy, dan RPC/function PostgreSQL | Membatasi akses berdasarkan role dan alur proses |
-
----
-
-## 6. Struktur File yang Disarankan untuk Serah-Terima
-
-Karena implementasi menggunakan project Supabase yang sama, paket yang diberikan kepada BPS sebaiknya tersusun sebagai berikut:
+Di dalam `ORBIT_BPS_HANDOVER_LENGKAP.zip`, terdapat struktur berikut:
 
 ```text
-ORBIT_FINAL_BPS_SULAWESI_UTARA/
+ORBIT_BPS_HANDOVER_LENGKAP/
 ├── README.md
-├── 01_APLIKASI/
-│   └── index.html
-├── 02_DATABASE/
-│   ├── supabase_schema_final_orbit_3_0_same_project_bps.sql
-│   ├── cek_setelah_schema_final_orbit_3_0.sql
-│   └── BACA_SEBELUM_RUN_SCHEMA_FINAL.txt
-├── 03_DOKUMENTASI/
-│   ├── GUIDE_BOOK_ORBIT_FINAL_3_0_BPS_SULAWESI_UTARA.pdf
-│   ├── PANDUAN_CEPAT_PENGGUNA_HARIAN_ORBIT.pdf
-│   └── CHECKLIST_UAT_DAN_SERAH_TERIMA_ORBIT.pdf
-└── 04_VALIDASI/
-    ├── HASIL_VALIDASI_SCHEMA.txt
-    └── HASIL_UAT_YANG_SUDAH_DITANDATANGANI.pdf
+└── ORBIT/
+    ├── index.html
+    ├── supabase_schema.sql
+    └── docs/
+        ├── PANDUAN_INSTALASI.md
+        ├── CHECKLIST_UJI_SISTEM.md
+        └── CATATAN_KONFIGURASI_AKUN.md
 ```
 
-### File yang tidak perlu diberikan sebagai setup utama
+---
 
-- Patch SQL pengembangan lama.
-- File migration percobaan atau file perbaikan bertahap.
-- Akun/data demo.
-- Password pengguna.
-- Supabase `service_role` key.
+## Struktur Repository yang Disarankan
+
+Untuk repository GitHub, struktur yang disarankan adalah:
+
+```text
+orbit-bps/
+├── README.md
+├── ORBIT/
+│   ├── index.html
+│   ├── supabase_schema.sql
+│   └── docs/
+│       ├── PANDUAN_INSTALASI.md
+│       ├── CHECKLIST_UJI_SISTEM.md
+│       └── CATATAN_KONFIGURASI_AKUN.md
+├── GUIDE_BOOK/
+│   ├── GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.docx
+│   └── GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.pdf
+├── README_SERAH_TERIMA.txt
+└── SHA256SUMS.txt
+```
+
+Catatan:
+
+- Untuk GitHub, sebaiknya file `ORBIT_BPS_HANDOVER_LENGKAP.zip` diekstrak terlebih dahulu agar isi project dapat dibaca langsung.
+- File ZIP boleh tetap disimpan sebagai arsip serah-terima, tetapi struktur folder utama tetap disarankan terbuka seperti contoh di atas.
+- File `README.md` ini diletakkan di root repository.
 
 ---
 
-## 7. Cara Menjalankan Aplikasi pada Komputer Lokal
+## Komponen Utama
 
-### Kebutuhan dasar
+### `ORBIT/index.html`
 
-- Browser: Google Chrome atau Microsoft Edge terbaru.
-- Koneksi internet untuk mengakses Supabase dan library CDN.
-- Visual Studio Code dengan ekstensi **Live Server**, atau web server statis lainnya.
+File utama aplikasi web ORBIT.
 
-### Langkah menjalankan
+Isi utama file ini:
 
-1. Buka folder yang berisi `index.html` di Visual Studio Code.
-2. Klik kanan pada `index.html`.
-3. Pilih **Open with Live Server**.
-4. Browser akan membuka aplikasi ORBIT.
-5. Masuk menggunakan akun yang telah diaktifkan sesuai role.
+- tampilan halaman login;
+- layout dashboard;
+- sidebar multi-role;
+- halaman admin;
+- halaman juri;
+- halaman verifikator;
+- halaman pegawai;
+- logic koneksi Supabase;
+- pemanggilan tabel database;
+- pemanggilan RPC/function;
+- validasi dan interaksi frontend.
 
-> Jangan menjalankan aplikasi hanya dengan membuka file melalui `file://` apabila terjadi kendala akses; gunakan Live Server atau hosting resmi.
+File ini juga memuat konfigurasi:
 
----
-
-## 8. Konfigurasi Supabase
-
-### Konfigurasi frontend
-
-Di dalam `index.html`, aplikasi menggunakan dua nilai konfigurasi:
-
-```javascript
+```js
 const SUPABASE_URL  = '...';
 const SUPABASE_ANON = '...';
 ```
 
-Untuk project operasional yang sama, konfigurasi tersebut harus menunjuk ke project Supabase ORBIT milik BPS yang digunakan pada implementasi.
+Jika project Supabase diganti, kedua nilai tersebut wajib disesuaikan.
 
-### Catatan keamanan konfigurasi
+### `ORBIT/supabase_schema.sql`
 
-- `SUPABASE_ANON`/publishable key memang digunakan oleh frontend dan dilindungi oleh RLS/policy database.
-- **Jangan pernah** menaruh `service_role` key di `index.html`, README, dokumen publik, atau file yang diberikan kepada pengguna biasa.
-- Akses dashboard Supabase hanya diberikan kepada PIC teknis atau pihak berwenang.
+File schema utama database Supabase.
+
+File ini berisi:
+
+- pembuatan tabel;
+- constraint;
+- index;
+- trigger;
+- function/RPC;
+- Row Level Security;
+- policy akses;
+- storage bucket;
+- seed data awal;
+- logic operasional untuk alur penilaian.
+
+### `ORBIT/docs/PANDUAN_INSTALASI.md`
+
+Panduan teknis untuk menjalankan database dan aplikasi dari awal.
+
+### `ORBIT/docs/CHECKLIST_UJI_SISTEM.md`
+
+Checklist pengujian setelah sistem dijalankan.
+
+### `ORBIT/docs/CATATAN_KONFIGURASI_AKUN.md`
+
+Dokumen khusus terkait role, status akun, Supabase Auth, dan aktivasi user.
+
+### `GUIDE_BOOK/GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.docx`
+
+Guide book versi Word yang dapat diedit untuk kebutuhan institusi.
+
+### `GUIDE_BOOK/GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.pdf`
+
+Guide book versi PDF yang siap dibaca, dicetak, atau diserahkan.
+
+### `README_SERAH_TERIMA.txt`
+
+Catatan ringkas isi paket dan hal penting saat serah-terima.
+
+### `SHA256SUMS.txt`
+
+Checksum file untuk membantu memastikan file tidak berubah setelah diserahkan.
 
 ---
 
-## 9. Penerapan Schema Database pada Project Supabase yang Sama
+## Alur Sistem
 
-### File database utama
+Alur umum penggunaan ORBIT adalah sebagai berikut:
 
 ```text
-supabase_schema_final_orbit_3_0_same_project_bps.sql
+Admin Login
+    ↓
+Admin Mengelola User, Pegawai, dan Juri
+    ↓
+Admin Input Nilai Bulanan
+    ↓
+Sistem Menentukan Kandidat Nominasi
+    ↓
+Admin Memilih dan Mengirim Nominasi ke Juri
+    ↓
+Juri Memberikan Penilaian
+    ↓
+Sistem Menghitung Ranking Live
+    ↓
+Admin Mengirim Ranking ke Verifikator
+    ↓
+Verifikator Menetapkan Pemenang
+    ↓
+Pemenang Masuk ke Arsip Penghargaan
 ```
 
-File tersebut adalah schema konsolidasi final. Karena BPS menggunakan **project Supabase yang sama**, file ini digunakan sebagai berikut:
+---
 
-- Dijalankan **satu kali** oleh pengembang/PIC sebelum serah-terima resmi.
-- Setelah berhasil, file disimpan dan diserahkan kepada BPS sebagai dokumentasi struktur database final.
-- Tidak dijalankan ulang pada project aktif tanpa backup dan pemeriksaan PIC teknis.
+## Instalasi dan Setup
 
-### Langkah aman sebelum menjalankan schema
+### 1. Siapkan Project Supabase
 
-1. Pastikan project Supabase yang dibuka adalah project ORBIT yang benar.
-2. Pastikan tidak ada pengguna yang sedang melakukan input atau proses keputusan pada waktu pembaruan.
-3. Lakukan backup database serta file storage sesuai prosedur instansi.
-4. Buka **Supabase Dashboard → SQL Editor → New Query**.
-5. Salin seluruh isi file schema final dan jalankan sekaligus.
-6. Setelah berhasil, jalankan file pengecekan:
+Buat project Supabase baru atau gunakan project Supabase yang sudah tersedia.
+
+### 2. Jalankan Schema Database
+
+1. Buka Supabase Dashboard.
+2. Masuk ke menu **SQL Editor**.
+3. Pilih **New Query**.
+4. Buka file berikut:
 
 ```text
-cek_setelah_schema_final_orbit_3_0.sql
+ORBIT/supabase_schema.sql
 ```
 
-7. Simpan screenshot atau hasil ekspor query pengecekan sebagai dokumen serah-terima.
-8. Lakukan UAT sebelum aplikasi dipakai operasional.
+5. Copy seluruh isi file SQL.
+6. Paste ke SQL Editor.
+7. Klik **Run**.
+8. Pastikan tidak ada error.
 
-### Struktur data utama
+Schema akan membuat tabel, function, trigger, policy, storage bucket, dan data awal yang diperlukan aplikasi.
 
-| Tabel | Kegunaan |
+### 3. Konfigurasi Supabase di Frontend
+
+Buka file:
+
+```text
+ORBIT/index.html
+```
+
+Cari bagian konfigurasi Supabase:
+
+```js
+const SUPABASE_URL  = '...';
+const SUPABASE_ANON = '...';
+```
+
+Ganti nilainya jika menggunakan project Supabase baru.
+
+### 4. Buat Akun Authentication
+
+SQL hanya membuat struktur dan profil aplikasi. Password tetap harus dibuat melalui **Supabase Authentication**.
+
+Langkah awal yang disarankan:
+
+1. Buka **Authentication → Users** di Supabase.
+2. Buat user admin dengan email yang sesuai dengan data awal di tabel `public.users`.
+3. Atur password.
+4. Login melalui aplikasi ORBIT.
+5. Admin dapat mengaktifkan dan mengatur role user lain.
+
+### 5. Jalankan Aplikasi
+
+Aplikasi dapat dijalankan dengan membuka file:
+
+```text
+ORBIT/index.html
+```
+
+Untuk penggunaan lokal sederhana, file dapat dibuka langsung melalui browser.
+
+Untuk penggunaan yang lebih rapi, gunakan hosting statis seperti GitHub Pages, Netlify, Vercel, atau server internal.
+
+---
+
+## Konfigurasi Supabase
+
+### Lokasi Konfigurasi
+
+Konfigurasi Supabase berada di dalam `index.html`:
+
+```js
+const SUPABASE_URL  = '...';
+const SUPABASE_ANON = '...';
+```
+
+### Cara Mendapatkan Nilai Supabase
+
+1. Buka Supabase Dashboard.
+2. Masuk ke **Project Settings**.
+3. Pilih **API**.
+4. Salin:
+   - Project URL
+   - Anon/Public Key
+
+### Catatan Penting
+
+- `anon key` boleh digunakan di frontend karena memang public key.
+- Jangan pernah memasukkan `service_role key` ke dalam frontend, GitHub publik, atau dokumen yang dibagikan.
+- Keamanan data tetap dikendalikan melalui RLS policy dan RPC pada database.
+
+---
+
+## Database dan Supabase Schema
+
+### Tabel Utama
+
+Schema final memuat tabel berikut:
+
+| Tabel | Fungsi |
 |---|---|
-| `users` | Profil akun login, role, tim, dan status pengguna |
-| `pegawai` | Master pegawai yang dinilai |
-| `juri` | Profil Juri yang tersinkron dengan user ber-role Juri |
-| `periode_bulanan` | Informasi periode operasional nilai |
-| `nilai_final` | Nilai bulanan pegawai |
-| `nominasi_final` | Enam kandidat final yang dikirim kepada Juri |
-| `penilaian` | Nilai yang diberikan oleh Juri |
-| `history_penghargaan` | Arsip pemenang triwulanan |
-| `sertifikat` | Metadata sertifikat pemenang |
-| `excel_uploads` | Metadata dokumen yang diunggah |
-| `notifikasi` | Informasi/notifikasi pengguna |
-| `audit_log` | Riwayat aksi penting |
-| `permintaan_koreksi` | Catatan proses yang dikembalikan Verifikator |
+| `users` | Profil aplikasi, role, status akun, dan relasi ke Supabase Auth. |
+| `pegawai` | Master data pegawai dan tim/divisi. |
+| `juri` | Data juri aktif/nonaktif. |
+| `nilai_final` | Nilai bulanan pegawai. |
+| `nominasi_final` | Nominasi yang dikirim ke juri/verifikator. |
+| `penilaian` | Nilai dari masing-masing juri. |
+| `history_penghargaan` | Arsip pemenang yang telah disetujui. |
+| `notifikasi` | Informasi/pesan untuk role tertentu. |
+| `excel_uploads` | Riwayat file/dokumen yang diunggah. |
+| `sertifikat` | Data sertifikat pemenang. |
+| `kipapp` | Dokumen atau file terkait KIPAPP. |
+| `permintaan_koreksi` | Catatan koreksi dari proses verifikasi. |
+| `audit_log` | Catatan aktivitas penting sistem. |
+| `orbit_schema_migrations` | Penanda versi schema. |
 
-### Fungsi utama database
+### Function/RPC Penting
 
-| Function/RPC | Kegunaan |
+Beberapa function/RPC utama:
+
+| Function/RPC | Fungsi |
 |---|---|
-| `get_kalender_operasional()` | Menentukan periode triwulan yang ditampilkan aplikasi |
-| `simpan_nilai_bulanan_realtime(...)` | Menyimpan nilai bulanan sesuai periode yang diizinkan |
-| `get_nominasi_bulanan_per_tim(...)` | Menampilkan pemenang bulanan masing-masing tim |
-| `kirim_nominasi_ke_juri(...)` | Mengirim tepat enam kandidat final kepada Juri |
-| `get_daftar_juri_status()` | Menampilkan kesiapan akun Juri |
-| `simpan_penilaian_juri(...)` | Menyimpan nilai Juri terhadap kandidat |
-| `get_ranking_live()` | Menyusun ranking hasil penilaian Juri |
-| `kirim_ranking_ke_verifikator()` | Mengirim hasil lengkap kepada Verifikator |
-| `tetapkan_pemenang(...)` | Menetapkan satu pemenang akhir triwulan |
-| `kembalikan_ke_admin(...)` | Mengembalikan proses dengan alasan perbaikan |
-| `buka_kembali_setelah_koreksi()` | Membuka tindak lanjut koreksi sesuai alur |
+| `orbit_login_profile` | Mengambil profil user login dan validasi status akun. |
+| `orbit_update_my_profile` | Mengubah profil user sendiri. |
+| `orbit_admin_upsert_user` | Admin membuat/memperbarui profil user aplikasi. |
+| `simpan_nilai_bulanan_realtime` | Menyimpan nilai bulanan pegawai. |
+| `orbit_simpan_nilai_final` | Menyimpan nilai final. |
+| `get_kalender_operasional` | Mengambil kalender/periode operasional. |
+| `get_nominasi_bulanan_per_tim` | Mengambil kandidat nominasi bulanan per tim. |
+| `get_kandidat_nominasi_triwulan` | Mengambil kandidat nominasi triwulan. |
+| `kirim_nominasi_ke_juri` | Mengirim nominasi dari admin ke juri. |
+| `simpan_penilaian_juri` | Menyimpan penilaian juri. |
+| `hapus_penilaian_juri` | Menghapus nilai juri sesuai aksesnya. |
+| `get_daftar_juri_status` | Menampilkan status/progres penilaian juri. |
+| `get_ranking_live` | Menghitung ranking berdasarkan nilai juri. |
+| `kirim_ranking_ke_verifikator` | Mengirim hasil ranking ke verifikator. |
+| `tetapkan_pemenang` | Menetapkan pemenang dan memasukkan ke arsip. |
+| `kembalikan_ke_admin` | Mengembalikan proses dari verifikator ke admin. |
+| `buka_kembali_setelah_koreksi` | Membuka kembali proses setelah koreksi. |
+| `reset_penilaian_baru` | Memulai siklus penilaian baru tanpa menghapus arsip. |
 
 ---
 
-## 10. Sign Up, Sign In, dan Aktivasi Akun
+## Pengujian Sistem
 
-### Alur akun baru
+Setelah setup selesai, gunakan checklist berikut:
 
-1. Pengguna melakukan **Sign Up** dari halaman login ORBIT menggunakan email yang benar.
-2. Sistem mencatat profil awal pengguna sebagai akun menunggu persetujuan/pending.
-3. Admin membuka menu **Kelola Pengguna**.
-4. Admin memeriksa identitas pengguna, menentukan role dan tim, lalu mengaktifkan akun.
-5. Pengguna login kembali dan memperoleh tampilan sesuai role.
+- Admin dapat login.
+- User baru dapat Sign Up.
+- User baru masuk status `pending`.
+- Admin dapat mengaktifkan user.
+- Admin dapat mengatur role user.
+- Admin dapat input nilai bulanan.
+- Kandidat nominasi tampil sesuai data nilai.
+- Admin dapat mengirim nominasi ke juri.
+- Juri dapat menyimpan penilaian.
+- Ranking live tampil.
+- Admin dapat mengirim hasil ke verifikator.
+- Verifikator dapat menetapkan pemenang.
+- Pemenang masuk ke arsip penghargaan.
+- Sertifikat dan file pendukung dapat dikelola.
+- RLS policy membatasi akses sesuai role.
 
-### Akun pertama/PIC Admin
+Checklist lebih lengkap tersedia pada:
 
-Apabila pada saat implementasi belum tersedia Admin aktif, PIC teknis mengikuti petunjuk aktivasi akun Admin pertama yang terdapat pada komentar bagian akhir file schema SQL final. Aktivasi hanya dilakukan untuk email resmi yang telah diverifikasi.
-
----
-
-## 11. Panduan Penggunaan Ringkas per Role
-
-### Admin
-
-1. Masuk dengan akun Admin aktif.
-2. Periksa master pegawai dan akun pengguna.
-3. Input nilai pegawai setiap bulan.
-4. Buka Dashboard dan lihat Nominasi Per Tim.
-5. Pilih kandidat tertinggi dari masing-masing tim sampai Nominasi Final berisi enam kandidat.
-6. Kirim enam kandidat kepada Juri.
-7. Pantau hingga semua Juri mengisi nilai.
-8. Kirim ranking kepada Verifikator.
-9. Setelah pemenang ditetapkan, kelola arsip, laporan, dan sertifikat.
-
-### Juri
-
-1. Login menggunakan akun Juri aktif.
-2. Buka menu Penilaian.
-3. Nilai seluruh enam kandidat final.
-4. Simpan nilai dan periksa kembali input milik sendiri.
-5. Jaga kerahasiaan akun login.
-
-### Verifikator
-
-1. Login sebagai Verifikator.
-2. Buka halaman Approval/Verifikasi.
-3. Periksa ranking hasil penilaian Juri.
-4. Tetapkan satu pemenang triwulan apabila hasil telah sesuai.
-5. Apabila perlu perbaikan, kembalikan proses kepada Admin dengan alasan yang jelas.
+```text
+ORBIT/docs/CHECKLIST_UJI_SISTEM.md
+```
 
 ---
 
-## 12. Keamanan dan Pemeliharaan
+## Deployment
 
-### Praktik keamanan wajib
+Aplikasi ORBIT dapat dijalankan sebagai static web app.
 
-- Jangan membagikan password antar pengguna.
-- Jangan memasukkan `service_role` key ke file frontend maupun dokumentasi.
-- Gunakan role sesuai kewenangan kerja.
-- Nonaktifkan akun yang tidak lagi berwenang.
-- Simpan dokumen dan sertifikat melalui storage private yang disediakan sistem.
-- Catat perubahan penting dan keputusan hasil melalui dokumen resmi instansi.
+### Opsi deployment
 
-### Backup yang disarankan
+- GitHub Pages
+- Netlify
+- Vercel
+- Hosting internal BPS
+- Web server statis sederhana
 
-| Waktu | Tindakan |
-|---|---|
-| Sebelum menjalankan schema final | Backup database dan storage |
-| Sebelum proses finalisasi triwulan | Pastikan data nilai dan nominasi telah benar |
-| Setelah pemenang ditetapkan | Simpan rekap hasil dan sertifikat |
-| Secara berkala | Backup sesuai kebijakan keamanan informasi BPS |
+### Catatan Deployment
 
----
+Karena aplikasi masih berbentuk satu file `index.html`, deployment cukup dilakukan dengan mengunggah file tersebut ke hosting statis.
 
-## 13. Troubleshooting Singkat
+Pastikan:
 
-| Kendala | Hal yang Perlu Diperiksa |
-|---|---|
-| Pengguna tidak bisa login | Status akun aktif, email/password, dan koneksi internet |
-| User Juri belum dapat menilai | Pastikan user sudah sign up, role Juri, status aktif, dan muncul sebagai Siap Menilai |
-| Nominasi Per Tim belum tampil | Pastikan nilai bulanan sudah diinput untuk periode yang ditampilkan |
-| Tombol kirim ke Juri belum aktif | Pastikan tiga pemenang bulanan tersedia pada seluruh tim dan enam kandidat telah dipilih |
-| Verifikator belum melihat hasil | Pastikan seluruh nilai Juri selesai dan Admin sudah mengirim ranking |
-| Dokumen tidak dapat dibuka | Pastikan hak akses sesuai role dan storage private dapat membuat tautan akses |
-| Ada pesan error sistem | Screenshot pesan, catat menu/role/periode, lalu hubungi PIC teknis tanpa mengirim password |
+- `SUPABASE_URL` sudah benar.
+- `SUPABASE_ANON` sudah benar.
+- Supabase schema sudah dijalankan.
+- Akun Auth sudah dibuat.
+- RLS policy sudah aktif.
+- Storage bucket tersedia.
 
 ---
 
-## 14. Pemeriksaan Sebelum Go-Live
+## Catatan Keamanan
 
-Sebelum ORBIT digunakan secara resmi, pastikan:
+Hal yang harus diperhatikan:
 
-- [ ] Backup database dan storage telah dilakukan.
-- [ ] Schema konsolidasi final telah dijalankan satu kali pada project Supabase yang sama.
-- [ ] Query pengecekan schema telah menunjukkan hasil sesuai.
-- [ ] Akun Admin dapat login.
-- [ ] Akun Juri tampil sebagai siap menilai.
-- [ ] Akun Verifikator dapat login.
-- [ ] Input nilai bulanan berhasil diuji.
-- [ ] Nominasi Per Tim menampilkan pemenang bulanan.
-- [ ] Enam kandidat final dapat dipilih dan dikirim kepada Juri.
-- [ ] Juri dapat menyimpan nilai.
-- [ ] Verifikator dapat menetapkan satu pemenang atau mengembalikan proses.
-- [ ] Arsip dan sertifikat telah diuji.
-- [ ] Checklist UAT telah ditandatangani PIC.
+1. Jangan membagikan **password akun**.
+2. Jangan memasukkan **service role key** ke dalam file frontend.
+3. Gunakan `anon/public key` saja pada frontend.
+4. Pastikan RLS policy tetap aktif.
+5. Pastikan user yang belum aktif tetap berstatus `pending`.
+6. Admin sebaiknya rutin mengecek user aktif.
+7. Backup database dilakukan sebelum perubahan besar.
+8. Repository publik sebaiknya tidak memuat kredensial sensitif atau data produksi.
+9. Jika repository dibuat publik, pertimbangkan untuk mengganti Supabase project key sebelum dipublikasikan.
 
 ---
 
-## 15. Informasi PIC dan Serah-Terima
+## Troubleshooting Singkat
 
-Bagian ini dapat diisi ketika sistem diserahkan kepada BPS.
+### User tidak bisa login
 
-| Informasi | Isian |
-|---|---|
-| PIC Operasional |  |
-| PIC Teknis/Supabase |  |
-| Admin Utama |  |
-| Admin Cadangan |  |
-| Verifikator |  |
-| Alamat website operasional |  |
-| Tanggal schema final dijalankan |  |
-| Lokasi penyimpanan backup |  |
-| Tanggal UAT |  |
-| Status go-live |  |
+Cek:
 
-> Jangan menuliskan password atau kunci rahasia pada README maupun formulir serah-terima.
+- Akun sudah ada di Supabase Authentication.
+- Email Auth sama dengan email di tabel `public.users`.
+- Status user di `public.users` sudah `aktif`.
+- Role user sudah benar.
+- `SUPABASE_URL` dan `SUPABASE_ANON` di `index.html` sesuai project.
+
+### Data tidak muncul
+
+Cek:
+
+- Schema SQL sudah dijalankan penuh.
+- RLS policy tidak error.
+- User login memiliki role yang sesuai.
+- Tabel terkait sudah memiliki data.
+- Browser console tidak menampilkan error Supabase.
+
+### Juri tidak bisa menilai
+
+Cek:
+
+- User memiliki role `juri`.
+- Status user `aktif`.
+- User sudah tersinkron dengan tabel `juri`.
+- Nominasi sudah dikirim oleh admin.
+- Proses masih berada pada tahap penilaian juri.
+
+### Verifikator tidak bisa menetapkan pemenang
+
+Cek:
+
+- User memiliki role `verifikator`.
+- Status user `aktif`.
+- Admin sudah mengirim ranking ke verifikator.
+- Proses berada pada status verifikasi.
+- Belum ada pemenang pada periode yang sama.
+
+### File tidak bisa diunggah
+
+Cek:
+
+- Bucket `doc-pegawai` sudah tersedia.
+- Policy storage sudah aktif.
+- User memiliki role admin.
+- File tidak melebihi batas upload Supabase.
+- Koneksi internet stabil.
 
 ---
 
-## 16. Dokumen Pendukung
+## Dokumentasi Tambahan
 
-Dokumen berikut menjadi pendamping README ini:
+Dokumentasi lengkap tersedia pada folder:
 
-- Guide Book Operasional ORBIT.
-- Panduan Cepat Pengguna Harian ORBIT.
-- Checklist UAT dan Serah-Terima.
-- Form Informasi PIC dan Akses.
-- Schema Supabase konsolidasi final.
-- Query pengecekan setelah schema final.
-- Laporan magang “Rancang Bangun Website Pemilihan Pegawai Teladan Badan Pusat Statistik Provinsi Sulawesi Utara”.
+```text
+GUIDE_BOOK/
+```
+
+Isi folder:
+
+- `GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.docx`
+- `GUIDE_BOOK_PROJECT_ORBIT_BPS_FINAL.pdf`
+
+Dokumen teknis tambahan tersedia pada:
+
+```text
+ORBIT/docs/
+```
+
+Isi folder:
+
+- `PANDUAN_INSTALASI.md`
+- `CHECKLIST_UJI_SISTEM.md`
+- `CATATAN_KONFIGURASI_AKUN.md`
 
 ---
 
-## 17. Catatan Akhir
+## Rekomendasi Pengelolaan Repository
 
-README ini menjelaskan fungsi, penggunaan, teknologi, alur database, keamanan, dan proses serah-terima ORBIT Final 3.0. Untuk operasional harian yang lebih rinci, gunakan **Guide Book Operasional** dan **Panduan Cepat Pengguna**. Sistem dinyatakan siap digunakan secara resmi setelah schema final diterapkan pada project Supabase yang sama, hasil pengecekan dinyatakan sesuai, dan UAT diselesaikan oleh PIC BPS.
+Untuk menjaga repository tetap rapi:
+
+- gunakan `README.md` ini sebagai dokumentasi utama;
+- letakkan file aplikasi pada folder `ORBIT/`;
+- letakkan dokumen manual pada folder `GUIDE_BOOK/`;
+- hindari menyimpan file ZIP berulang jika isi file sudah diekstrak;
+- gunakan commit message yang jelas;
+- jangan commit password atau service role key;
+- lakukan update README jika ada perubahan besar pada schema atau flow sistem.
+
+Contoh commit message:
+
+```text
+feat: add final ORBIT handover package
+docs: update installation guide
+fix: adjust Supabase schema for user role flow
+chore: add guide book and checksum
+```
 
 ---
 
-**ORBIT — Outstanding Recognition & Benchmarking Tool**  
-Portal Pegawai Teladan BPS Provinsi Sulawesi Utara
+## Status Project
+
+Status: **Final Handover Package**
+
+Paket ini sudah memuat:
+
+- aplikasi web ORBIT;
+- schema database Supabase;
+- dokumentasi instalasi;
+- checklist pengujian;
+- catatan konfigurasi akun;
+- guide book project;
+- checksum file;
+- catatan serah-terima.
+
+Project siap digunakan sebagai bahan serah-terima, dokumentasi GitHub, dan setup awal pada project Supabase pihak BPS.
+
+---
+
+## Kredit
+
+Project ORBIT dikembangkan sebagai bagian dari kegiatan magang dan pengembangan sistem pendukung proses penilaian Pegawai Teladan BPS Provinsi Sulawesi Utara.
+
