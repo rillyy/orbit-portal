@@ -1,0 +1,553 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ORBIT - Portal Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/orbit-app.js" defer></script>
+</head>
+<body>
+
+  <!-- DEV MODE BANNER -->
+  <div id="dev-banner" style="display:none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <strong>DEV MODE</strong> - Masuk sebagai <strong id="dev-role-label">admin</strong> tanpa autentikasi Supabase
+    <button onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div id="app">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sb-logo">
+        <div class="orbit-anim"><div class="orb-planet"></div><div class="orb-ring orb-r1"></div><div class="orb-ring orb-r2"></div><div class="orb-ring orb-r3"></div></div>
+        <div id="sb-brand-wrap" style="text-align:center">
+          <div class="sb-brand">ORBIT</div>
+          <div class="sb-div" style="margin:8px auto"></div>
+          <div class="sb-tagline">Outstanding Recognition<br />&amp; Benchmarking Tool</div>
+        </div>
+      </div>
+      <nav class="sb-nav" id="sb-nav"><!-- filled by JS --></nav>
+      <button class="sb-collapse-btn" onclick="collapseToggle()">
+        <svg id="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+        <span id="collapse-label">Collapse</span>
+      </button>
+      <div class="sb-profile">
+        <div class="sb-avatar" id="sb-avatar">U</div>
+        <div id="sb-user-info"><div class="sb-user-name" id="sb-name">User</div><div class="sb-user-role" id="sb-role">Role</div></div>
+        <div class="sb-logout" onclick="doLogout()" title="Logout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </div>
+      </div>
+    </div><!-- /sidebar -->
+
+    <!-- MAIN -->
+    <div id="main">
+      <!-- TOPBAR -->
+      <div id="topbar">
+        <div class="topbar-left">
+          <button class="hamburger" onclick="toggleSidebar()" aria-label="Buka menu navigasi">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="topbar-heading">
+            <div class="topbar-breadcrumb">ORBIT &nbsp;/&nbsp; Portal Pegawai Teladan</div>
+            <div class="topbar-title" id="topbar-title">Dashboard</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span class="active-account">AKUN AKTIF</span>
+          <span id="topbar-date" class="topbar-date" style="font-size:12px"></span>
+          <div class="topbar-avatar" id="topbar-avatar" aria-label="Profil pengguna">U</div>
+        </div>
+      </div><!-- /topbar -->
+
+      <!-- CONTENT -->
+      <div id="content">
+
+        <div id="page-admin-dash" class="hidden page">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <div class="page-title">Dashboard Admin</div>
+              <div class="page-sub">Monitoring penilaian dan penghargaan pegawai</div>
+            </div>
+          </div>
+          <div class="dashboard-banner">
+            <div>
+              <h3>Portal Pengelolaan Pegawai Teladan</h3>
+              <p>Kelola nilai, nominasi, akun pengguna, dan proses verifikasi dalam satu alur kerja yang terstruktur.
+              </p>
+            </div>
+            <div class="banner-tag">ADMIN WORKSPACE</div>
+          </div>
+          <div class="stats-grid mb-6" id="admin-stats"></div>
+          <div class="panel mb-6">
+            <div class="sec-head">
+              <h2>Quick Actions</h2>
+            </div>
+            <div class="qa-grid" id="admin-qa"></div>
+          </div>
+          <div class="form-grid-2" style="gap:20px;margin-bottom:20px">
+            <!-- Nominasi Per Tim -->
+            <div class="panel nomination-source-panel">
+              <div class="sec-head">
+                <h2>Nominasi Per Tim</h2>
+                <div id="nomination-lock-badge"></div>
+              </div>
+              <div class="nomination-period-box" id="nomination-period-box">
+                <label>Periode Penilaian Aktif</label>
+                <select id="nomination-period" onchange="changeNominationPeriod(this.value)">
+                  <option value="">Pilih periode penilaian</option>
+                </select>
+                <div class="nomination-period-help">Nominasi final hanya diambil dari satu periode yang sama.</div>
+              </div>
+              <div id="nominasi-container">
+                <div class="loading-spin"></div>
+              </div>
+            </div>
+            <!-- Nominasi Final -->
+            <div class="panel nomination-final-panel">
+              <div class="sec-head">
+                <h2>Nominasi Final</h2>
+                <div id="final-status-badge"></div>
+              </div>
+              <div id="final-list"></div>
+              <div class="nomination-action-area">
+                <button class="btn btn-action-orbit" id="send-jury-btn" onclick="kirimKeJuri()" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  </svg>
+                  <span id="send-jury-label">Kirim ke Juri</span>
+                </button>
+                <div class="nomination-action-note" id="send-jury-note">Pilih nominasi dari panel sebelah kiri terlebih
+                  dahulu.</div>
+              </div>
+            </div>
+          </div>
+          <!-- Final Ranking -->
+          <div class="panel mb-6">
+            <div class="sec-head">
+              <h2>Final Ranking (Hasil Juri)</h2>
+            </div>
+            <div id="ranking-container"></div>
+            <button class="btn btn-action-orbit mt-4" id="send-approval-btn" onclick="kirimKeApproval()">Kirim ke
+              Verifikator</button>
+          </div>
+          <div style="text-align:right">
+
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: INPUT NILAI ========== -->
+        <div id="page-admin-input" class="hidden page">
+          <div class="page-title mb-2">Input Nilai Bulanan</div>
+          <div class="page-sub mb-6">Kelola nilai kinerja pegawai secara terstruktur</div>
+          <div class="panel mb-6">
+            <div class="sec-head">
+              <h2>Form Input Nilai</h2>
+            </div>
+            <div class="form-grid-4 mb-4">
+              <div><label>Tahun</label><input type="number" id="in-tahun" value="2025" /></div>
+              <div><label>Triwulan</label>
+                <select id="in-triw" onchange="updateBulanOptions()">
+                  <option value="">Pilih Triwulan</option>
+                  <option value="1">Triwulan 1</option>
+                  <option value="2">Triwulan 2</option>
+                  <option value="3">Triwulan 3</option>
+                  <option value="4">Triwulan 4</option>
+                </select>
+              </div>
+              <div><label>Bulan</label><select id="in-bulan">
+                  <option value="">Pilih Bulan</option>
+                </select></div>
+              <div><label>Pegawai</label><select id="in-pegawai">
+                  <option value="">Pilih Pegawai</option>
+                </select></div>
+            </div>
+            <div class="form-grid-2">
+              <div><label>Nilai Final (TPK)</label><input type="number" id="in-nilai" placeholder="Contoh: 85" /></div>
+              <div><label>Jumlah Kegiatan KIPAPP</label><input type="number" id="in-kipapp" placeholder="Contoh: 3" />
+              </div>
+            </div>
+            <div class="flex gap-4 mt-6">
+              <button class="btn btn-primary" onclick="simpanNilai()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2zM17 21v-8H7v8M7 3v5h8" />
+                </svg>
+                Simpan
+              </button>
+              <button class="btn btn-ghost" onclick="navigate('admin-dash')">Kembali</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="sec-head">
+              <h2>Data Yang Sudah Diinput</h2>
+            </div>
+            <div id="data-nilai-list">
+              <div class="loading-spin"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: UPLOAD EXCEL ========== -->
+        <div id="page-admin-upload" class="hidden page">
+          <div class="page-title mb-2">Upload Dokumen</div>
+          <div class="page-sub mb-6">Upload dokumen pendukung penilaian dan administrasi</div>
+          <div class="panel mb-6">
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+              <input type="file" id="file-input" accept=".xlsx,.xls,.pdf,.doc,.docx"
+                onchange="handleFileSelect(event)" />
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                style="color:var(--text-3);margin:0 auto 14px;display:block">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+              </svg>
+              <div id="file-name" style="color:var(--text-3);font-size:14px">Klik atau drag file ke sini (.xlsx, .xls,
+                .pdf, .doc)</div>
+            </div>
+            <button class="btn btn-primary mt-4" onclick="doUploadFile()" id="upload-btn">Upload File</button>
+          </div>
+          <div class="panel">
+            <div class="sec-head">
+              <h2>File Yang Telah Diupload</h2>
+            </div>
+            <div id="uploaded-files">
+              <div class="loading-spin"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: KELOLA PENGGUNA & ROLE ========== -->
+        <div id="page-admin-users" class="hidden page">
+          <div class="page-title mb-2">Kelola Pengguna</div>
+          <div class="page-sub mb-6">Akun Login · Role · Divisi · Status Akses</div>
+          <div class="stats-grid mb-6" id="user-stats"></div>
+          <div class="panel mb-4">
+            <div class="sec-head">
+              <h2 id="user-form-title">Tambah Pengguna</h2><span class="badge badge-purple">Admin Only</span>
+            </div>
+            <div class="callout mb-4">Pengguna dapat mendaftar sendiri melalui <strong>Sign Up</strong>, lalu Admin
+              mengaktifkan akun dan memilih role. Perubahan role <strong>Pegawai ↔ Juri</strong> akan tersinkron
+              otomatis.</div>
+            <div class="form-grid-2 mb-4">
+              <div><label>Nama Lengkap</label><input id="user-new-nama" placeholder="Nama lengkap" /></div>
+              <div><label>Email Login</label><input type="email" id="user-new-email" placeholder="nama@bps.go.id" />
+              </div>
+            </div>
+            <div class="form-grid-3 mb-4">
+              <div><label>Role</label>
+                <select id="user-new-role">
+                  <option value="pegawai">Pegawai</option>
+                  <option value="juri">Juri</option>
+                  <option value="verifikator">Verifikator</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div><label>Divisi / Tim</label>
+                <select id="user-new-tim">
+                  <option>Umum</option>
+                  <option>Sosial</option>
+                  <option>Produksi</option>
+                  <option>Nerwilis</option>
+                  <option>IPDS</option>
+                  <option>Distribusi</option>
+                </select>
+              </div>
+              <div><label>Status Akun</label>
+                <select id="user-new-status">
+                  <option value="aktif">Aktif</option>
+                  <option value="pending">Menunggu Approval</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-action-orbit" id="save-user-btn" onclick="simpanPengguna()">+ Simpan
+                Pengguna</button>
+              <button class="btn btn-ghost" onclick="resetUserForm()">Reset</button>
+            </div>
+          </div>
+          <div class="panel mb-4">
+            <div class="user-toolbar">
+              <input placeholder="🔍 Cari nama atau email..." id="search-user" oninput="renderPengguna()" />
+              <select id="filter-user-role" onchange="renderPengguna()">
+                <option value="">Semua Role</option>
+                <option value="pegawai">Pegawai</option>
+                <option value="juri">Juri</option>
+                <option value="verifikator">Verifikator</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select id="filter-user-tim" onchange="renderPengguna()">
+                <option value="">Semua Divisi</option>
+                <option>Umum</option>
+                <option>Sosial</option>
+                <option>Produksi</option>
+                <option>Nerwilis</option>
+                <option>IPDS</option>
+                <option>Distribusi</option>
+              </select>
+            </div>
+          </div>
+          <div id="user-list"></div>
+        </div>
+
+        <!-- ========== ADMIN: KELOLA PEGAWAI ========== -->
+        <div id="page-admin-pegawai" class="hidden page">
+          <div class="page-title mb-2">Kelola Pegawai</div>
+          <div class="page-sub mb-6">Master Data Pegawai · Nama · Divisi · Status Keaktifan</div>
+          <div class="stats-grid mb-6" id="pegawai-master-stats"></div>
+          <div class="panel mb-4">
+            <div class="sec-head">
+              <h2 id="pegawai-form-title">Tambah Pegawai</h2><span class="badge badge-cyan">Master Pegawai</span>
+            </div>
+            <div class="callout mb-4">Menu ini tetap digunakan untuk mengelola data seluruh pegawai yang dapat dinilai.
+              Pengaturan akun login dan pergantian role tetap dilakukan di menu <strong>Kelola Pengguna</strong>.</div>
+            <div class="form-grid-3">
+              <div><label>Nama Pegawai</label><input id="pegawai-new-nama" placeholder="Nama lengkap" /></div>
+              <div><label>Divisi / Tim</label>
+                <select id="pegawai-new-tim">
+                  <option>Umum</option>
+                  <option>Sosial</option>
+                  <option>Produksi</option>
+                  <option>Nerwilis</option>
+                  <option>IPDS</option>
+                  <option>Distribusi</option>
+                </select>
+              </div>
+              <div><label>Status Pegawai</label>
+                <select id="pegawai-new-status">
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-action-orbit" id="save-pegawai-btn" onclick="simpanPegawaiMaster()">+ Simpan
+                Pegawai</button>
+              <button class="btn btn-ghost" onclick="resetPegawaiForm()">Reset</button>
+            </div>
+          </div>
+          <div class="panel mb-4">
+            <div class="user-toolbar">
+              <input placeholder="🔍 Cari nama pegawai..." id="search-pegawai-master" oninput="renderMasterPegawai()" />
+              <select id="filter-pegawai-tim" onchange="renderMasterPegawai()">
+                <option value="">Semua Divisi</option>
+                <option>Umum</option>
+                <option>Sosial</option>
+                <option>Produksi</option>
+                <option>Nerwilis</option>
+                <option>IPDS</option>
+                <option>Distribusi</option>
+              </select>
+              <select id="filter-pegawai-status" onchange="renderMasterPegawai()">
+                <option value="">Semua Status</option>
+                <option value="aktif">Aktif</option>
+                <option value="nonaktif">Nonaktif</option>
+              </select>
+            </div>
+          </div>
+          <div id="pegawai-master-list"></div>
+        </div>
+
+        <!-- ========== ADMIN: LAPORAN ========== -->
+        <div id="page-admin-laporan" class="hidden page">
+          <div class="page-title mb-2">Generate Laporan</div>
+          <div class="page-sub mb-6">Rekap hasil penilaian berdasarkan periode</div>
+          <div class="panel mb-6">
+            <div class="sec-head">
+              <h2>Filter Laporan</h2>
+            </div>
+            <div class="form-grid-2 mb-6">
+              <div><label>Tahun</label><input type="number" id="lap-tahun" value="2025" /></div>
+              <div><label>Triwulan</label>
+                <select id="lap-triw">
+                  <option value="1">Triwulan 1 (Jan–Mar)</option>
+                  <option value="2">Triwulan 2 (Apr–Jun)</option>
+                  <option value="3">Triwulan 3 (Jul–Sep)</option>
+                  <option value="4">Triwulan 4 (Okt–Des)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateLaporan()">Generate Laporan</button>
+          </div>
+          <div class="panel">
+            <div class="sec-head">
+              <h2>Hasil Rekapan Terbaik Per Tim</h2>
+            </div>
+            <div id="laporan-hasil">
+              <div class="empty-state">Klik Generate Laporan untuk melihat hasil</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: SERTIFIKAT UPLOAD ========== -->
+        <div id="page-admin-sert-upload" class="hidden page">
+          <div class="page-title mb-2">Upload Sertifikat</div>
+          <div class="page-sub mb-6">Upload sertifikat penghargaan pegawai teladan</div>
+          <div class="panel mb-6">
+            <div class="form-grid-2 mb-4">
+              <div><label>Pilih Pegawai</label><select id="sert-pegawai">
+                  <option value="">Pilih Pegawai</option>
+                </select></div>
+              <div><label>Triwulan</label>
+                <select id="sert-triw">
+                  <option value="1">Triwulan 1</option>
+                  <option value="2">Triwulan 2</option>
+                  <option value="3">Triwulan 3</option>
+                  <option value="4">Triwulan 4</option>
+                </select>
+              </div>
+            </div>
+            <div class="upload-zone" onclick="document.getElementById('sert-file').click()">
+              <input type="file" id="sert-file" accept="image/*,.pdf" onchange="sertFileSelect(event)" />
+              <div id="sert-file-name" style="color:var(--text-3);font-size:14px">Upload file sertifikat (JPG/PNG/PDF)
+              </div>
+            </div>
+            <button class="btn btn-primary mt-4" onclick="uploadSertifikat()">Upload Sertifikat</button>
+          </div>
+          <div class="panel">
+            <div class="sec-head">
+              <h2>Sertifikat Tersimpan</h2>
+            </div>
+            <div id="sert-list"></div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: SERTIFIKAT LIHAT ========== -->
+        <div id="page-admin-sert-lihat" class="hidden page">
+          <div class="page-title mb-2">Lihat Sertifikat</div>
+          <div class="page-sub mb-6">Daftar sertifikat penghargaan yang telah diupload</div>
+          <div id="sert-lihat-list">
+            <div class="loading-spin"></div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: PENILAIAN JURI (MANAJEMEN) ========== -->
+        <div id="page-admin-juri" class="hidden page">
+          <div class="page-title mb-2">Penilaian Juri</div>
+          <div class="page-sub mb-6">Kelola juri dan monitoring penilaian</div>
+          <div style="display:flex;gap:10px;margin-bottom:24px" id="pj-tabs">
+            <button class="btn btn-primary btn-sm" onclick="switchPJTab('manajemen',this)">Manajemen Juri</button>
+            <button class="btn btn-ghost btn-sm" onclick="switchPJTab('monitoring',this)">Monitoring Juri</button>
+
+          </div>
+          <div id="pj-manajemen">
+            <div class="panel mb-4">
+              <div class="sec-head">
+                <h2>Manajemen Juri Aktif</h2>
+              </div>
+              <div class="callout">Penambahan, perubahan nama, divisi, maupun pergantian <strong>Pegawai ↔ Juri</strong>
+                dilakukan melalui menu <strong>Kelola Pengguna</strong>. Perubahan role otomatis memperbarui daftar juri
+                aktif tanpa menghapus riwayat penilaian.</div>
+              <button class="btn btn-primary btn-sm mt-4" onclick="navigate('admin-users')">Buka Kelola
+                Pengguna</button>
+            </div>
+            <div class="panel">
+              <div class="sec-head">
+                <h2>Daftar Juri Aktif</h2>
+              </div>
+              <div id="juri-list-admin"></div>
+            </div>
+          </div>
+          <div id="pj-monitoring" class="hidden">
+            <div class="panel">
+              <div class="sec-head">
+                <h2>Monitoring Status Penilaian Juri</h2>
+              </div>
+              <div id="monitoring-content"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: NOTIFIKASI ========== -->
+        <div id="page-admin-notif" class="hidden page">
+          <div class="page-title mb-2">Notifikasi</div>
+          <div class="page-sub mb-6">Kelola informasi dan pemberitahuan sistem</div>
+          <div class="panel mb-6">
+            <div class="sec-head">
+              <h2>Tambah Notifikasi</h2>
+            </div>
+            <div class="form-grid-2 mb-4">
+              <div><label>Judul Notifikasi</label><input id="notif-judul" placeholder="Judul singkat" /></div>
+              <div><label>Target Role</label>
+                <select id="notif-role">
+                  <option value="">Pilih Target</option>
+                  <option value="pegawai">Pegawai</option>
+                  <option value="juri">Juri</option>
+                  <option value="verifikator">Verifikator</option>
+                  <option value="semua">Semua</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-4"><label>Pesan Notifikasi</label><textarea id="notif-pesan" rows="3"
+                placeholder="Isi pesan..."></textarea></div>
+            <div class="form-grid-2 mb-4">
+              <div><label>Deadline (opsional)</label><input type="date" id="notif-deadline" /></div>
+              <div><label>Tipe</label>
+                <select id="notif-tipe">
+                  <option value="info">Info</option>
+                  <option value="deadline">Deadline</option>
+                  <option value="warning">Warning</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="simpanNotif()">Simpan Notifikasi</button>
+          </div>
+          <div class="panel">
+            <div class="sec-head">
+              <h2>Daftar Notifikasi</h2>
+            </div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: APPROVAL (MONITORING) ========== -->
+        <div id="page-admin-approval" class="hidden page">
+          <div class="page-title mb-2">Monitoring Approval Verifikator</div>
+          <div class="page-sub mb-6">Status persetujuan penilaian oleh verifikator</div>
+          <div id="approval-monitor-content">
+            <div class="loading-spin"></div>
+          </div>
+        </div>
+
+        <!-- ========== ADMIN: HISTORY ========== -->
+        <div id="page-admin-history" class="hidden page">
+          <div class="page-title mb-2">Arsip Pegawai Teladan</div>
+          <div class="page-sub mb-6">Arsip penerima penghargaan pegawai teladan</div>
+          <div class="year-tabs" id="history-years"></div>
+          <div id="history-content">
+            <div class="loading-spin"></div>
+          </div>
+        </div>
+
+
+        <!-- ========== PEGAWAI: DASHBOARD ========== -->
+
+        <!-- SCORE MODAL -->
+        <div id="score-modal" class="modal-overlay hidden">
+          <div class="modal-box" style="max-width:460px">
+            <button class="modal-close" onclick="closeScoreModal()">&#x2715;</button>
+            <div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--cyan);margin-bottom:20px" id="modal-juri-name">-</div>
+            <div class="mb-4"><label>Nama Pegawai</label>
+              <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-1)" id="modal-pegawai-name">-</div>
+            </div>
+            <div class="mb-6"><label>Input Nilai (0-100)</label>
+              <input type="number" id="modal-nilai" min="0" max="100" placeholder="Masukkan nilai" />
+            </div>
+            <div class="flex justify-between">
+              <button class="btn btn-ghost btn-sm" onclick="hapusNilaiJuri()">Hapus Nilai</button>
+              <button class="btn btn-action-orbit btn-sm" onclick="submitNilaiJuri()">Simpan Nilai Saya</button>
+            </div>
+          </div>
+        </div><!-- /score-modal -->
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+    <div id="sb-overlay" class="sb-overlay hidden" onclick="toggleSidebar()"></div>
+  </div><!-- /app -->
+
+  <!-- TOAST -->
+  <div id="toast" class="hide"></div>
+
+</body>
+</html>

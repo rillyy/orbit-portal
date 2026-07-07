@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ORBIT - Portal Pegawai</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/orbit-app.js" defer></script>
+</head>
+<body>
+
+  <!-- DEV MODE BANNER -->
+  <div id="dev-banner" style="display:none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <strong>DEV MODE</strong> - Masuk sebagai <strong id="dev-role-label">pegawai</strong> tanpa autentikasi Supabase
+    <button onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div id="app">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sb-logo">
+        <div class="orbit-anim"><div class="orb-planet"></div><div class="orb-ring orb-r1"></div><div class="orb-ring orb-r2"></div><div class="orb-ring orb-r3"></div></div>
+        <div id="sb-brand-wrap" style="text-align:center">
+          <div class="sb-brand">ORBIT</div>
+          <div class="sb-div" style="margin:8px auto"></div>
+          <div class="sb-tagline">Outstanding Recognition<br />&amp; Benchmarking Tool</div>
+        </div>
+      </div>
+      <nav class="sb-nav" id="sb-nav"><!-- filled by JS --></nav>
+      <button class="sb-collapse-btn" onclick="collapseToggle()">
+        <svg id="collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+        <span id="collapse-label">Collapse</span>
+      </button>
+      <div class="sb-profile">
+        <div class="sb-avatar" id="sb-avatar">U</div>
+        <div id="sb-user-info"><div class="sb-user-name" id="sb-name">User</div><div class="sb-user-role" id="sb-role">Role</div></div>
+        <div class="sb-logout" onclick="doLogout()" title="Logout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </div>
+      </div>
+    </div><!-- /sidebar -->
+
+    <!-- MAIN -->
+    <div id="main">
+      <!-- TOPBAR -->
+      <div id="topbar">
+        <div class="topbar-left">
+          <button class="hamburger" onclick="toggleSidebar()" aria-label="Buka menu navigasi">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="topbar-heading">
+            <div class="topbar-breadcrumb">ORBIT &nbsp;/&nbsp; Portal Pegawai Teladan</div>
+            <div class="topbar-title" id="topbar-title">Dashboard</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span class="active-account">AKUN AKTIF</span>
+          <span id="topbar-date" class="topbar-date" style="font-size:12px"></span>
+          <div class="topbar-avatar" id="topbar-avatar" aria-label="Profil pengguna">U</div>
+        </div>
+      </div><!-- /topbar -->
+
+      <!-- CONTENT -->
+      <div id="content">
+
+        <div id="page-pegawai-dash" class="hidden page">
+          <div class="page-title mb-2">Dashboard Pegawai</div>
+          <div class="page-sub mb-6">Profil dan informasi penghargaan</div>
+          <div class="stats-grid mb-6" id="pegawai-dash-stats"></div>
+          <div class="form-grid-2" style="gap:20px">
+            <div class="panel">
+              <div class="sec-head">
+                <h2>Informasi Akun</h2>
+              </div>
+              <div id="pegawai-info"></div>
+            </div>
+            <div class="panel">
+              <div class="sec-head">
+                <h2>Notifikasi</h2>
+              </div>
+              <div id="pegawai-notif-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== PEGAWAI: PROFIL ========== -->
+        <div id="page-pegawai-profil" class="hidden page">
+          <div class="page-title mb-2">Profil Pegawai</div>
+          <div class="page-sub mb-6">Informasi akun dan divisi</div>
+          <div class="panel" style="max-width:560px" id="pegawai-profil-content"></div>
+        </div>
+
+        <!-- ========== PEGAWAI: RIWAYAT ========== -->
+        <div id="page-pegawai-riwayat" class="hidden page">
+          <div class="page-title mb-2">Arsip Pegawai Teladan</div>
+          <div class="page-sub mb-6">Riwayat penghargaan yang telah ditetapkan</div>
+          <div class="year-tabs" id="pegawai-hist-years"></div>
+          <div id="pegawai-hist-content">
+            <div class="loading-spin"></div>
+          </div>
+        </div>
+
+        <!-- ========== JURI: DASHBOARD ========== -->
+
+        <!-- SCORE MODAL -->
+        <div id="score-modal" class="modal-overlay hidden">
+          <div class="modal-box" style="max-width:460px">
+            <button class="modal-close" onclick="closeScoreModal()">&#x2715;</button>
+            <div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--cyan);margin-bottom:20px" id="modal-juri-name">-</div>
+            <div class="mb-4"><label>Nama Pegawai</label>
+              <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-1)" id="modal-pegawai-name">-</div>
+            </div>
+            <div class="mb-6"><label>Input Nilai (0-100)</label>
+              <input type="number" id="modal-nilai" min="0" max="100" placeholder="Masukkan nilai" />
+            </div>
+            <div class="flex justify-between">
+              <button class="btn btn-ghost btn-sm" onclick="hapusNilaiJuri()">Hapus Nilai</button>
+              <button class="btn btn-action-orbit btn-sm" onclick="submitNilaiJuri()">Simpan Nilai Saya</button>
+            </div>
+          </div>
+        </div><!-- /score-modal -->
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+    <div id="sb-overlay" class="sb-overlay hidden" onclick="toggleSidebar()"></div>
+  </div><!-- /app -->
+
+  <!-- TOAST -->
+  <div id="toast" class="hide"></div>
+
+</body>
+</html>
